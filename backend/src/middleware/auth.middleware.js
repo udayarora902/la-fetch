@@ -3,28 +3,35 @@ import User from "../models/user.model.js";
 
 export const protectRoute = async (req, res, next) => {
   try {
-    // check token in cookie or header
-    const token =
-      req.cookies?.accessToken || req.headers.authorization?.split(" ")[1];
+    let token;
+
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
+    }
+
+    if (!token && req.cookies?.accessToken) {
+      token = req.cookies.accessToken;
+    }
+
+    console.log("AUTH HEADER:", req.headers.authorization);
+    console.log("TOKEN:", token);
 
     if (!token) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "Not authenticated" });
     }
 
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-    } catch (err) {
-      return res.status(401).json({ message: "Invalid or expired token" });
+    const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
+    console.log("DECODED:", decoded);
+
+    req.user = await User.findById(decoded.userId).select("-password");
+    console.log("REQ USER:", req.user);
+
+    if (!req.user) {
+      return res.status(401).json({ message: "User not found" });
     }
-
-    const user = await User.findById(decoded.userId).select("-password");
-
-    if (!user) {
-      return res.status(401).json({ message: "User no longer exists" });
-    }
-
-    req.user = user;
 
     next();
   } catch (err) {
@@ -37,11 +44,9 @@ export const authorize = (...roles) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-
     if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: "Forbidden access denied" });
+      return res.status(403).json({ message: "Admin access required" });
     }
-
     next();
   };
 };
