@@ -88,12 +88,30 @@ JWTs are **stateless**. Server restarts do not invalidate tokens.
 **POST /api/users/login**
 Login and receive a JWT token.
 
+{
+"email": "admin@test.com",
+"password": "admin123"
+}
+--or--
+
+{
+"email": "user@test.com",
+"password": "user123"
+}
+
 ---
 
 ### Users (Admin Only)
 
 **POST /api/users**
 Create a new user or admin.
+
+{
+"name": "John Doe",
+"email": "john@test.com",
+"password": "john123",
+"role": "user"
+}
 
 ---
 
@@ -103,6 +121,12 @@ Create a new user or admin.
 
 - Access: Admin
 - Description: Create and assign a task to a user
+
+{
+"title": "Demo",
+"description": "Demo",
+"assignedTo": "User ID"
+}
 
 **GET /api/tasks**
 
@@ -118,6 +142,10 @@ Create a new user or admin.
 
 - Access: Admin or assigned user
 - Description: Update task status or details
+
+{
+"status": "completed"
+}
 
 **DELETE /api/tasks/:taskId**
 
@@ -165,6 +193,12 @@ Errors are returned in a consistent JSON format.
 ```bash
 npm install
 npm start
+```
+
+## Run using Docker:
+
+```
+docker compose up --build
 ```
 
 Server runs at:

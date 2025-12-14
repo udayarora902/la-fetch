@@ -1,0 +1,17 @@
+name: node-fork-project
+
+services:
+  app:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: la_fetch
+    environment:
+      MONGO_URI: put_your_mongo_uri_here
+      NODE_ENV: production
+      PORT: 5001
+      ACCESS_TOKEN_SECRET: put_your_access_token_secret_here
+    ports:
+      - "5001:5001"
+    # cpus: 2
+    restart: unless-stopped
