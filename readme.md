@@ -123,9 +123,9 @@ Create a new user or admin.
 - Description: Create and assign a task to a user
 
 {
-"title": "Demo",
-"description": "Demo",
-"assignedTo": "User ID"
+"title": "Test Title",
+"description": "Test Description",
+"assignedTo": "64f1b2a9c8e4a1d2b3c4d5e6"
 }
 
 **GET /api/tasks**
