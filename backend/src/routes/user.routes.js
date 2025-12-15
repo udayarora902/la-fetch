@@ -8,13 +8,24 @@ import { protectRoute, authorize } from "../middleware/auth.middleware.js";
 
 const router = express.Router();
 
-// login user (public)
+/**
+ * PUBLIC
+ */
+
+// login
 router.post("/login", loginUser);
 
-// register user (ADMIN ONLY, after bootstrap)
+// bootstrap admin (ONLY works when no admin exists)
+router.post("/bootstrap", registerUser);
+
+/**
+ * PROTECTED
+ */
+
+// admin creates users
 router.post("/", protectRoute, authorize("admin"), registerUser);
 
-// get all users (admin only)
+// admin fetch users
 router.get("/", protectRoute, authorize("admin"), getUsers);
 
 export default router;

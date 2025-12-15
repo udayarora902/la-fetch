@@ -7,10 +7,9 @@ services:
       dockerfile: Dockerfile
     container_name: la_fetch
     environment:
-      MONGO_URI: put_your_mongo_uri_here
-      NODE_ENV: production
+      DATABASE_URL: database_url_here
       PORT: 5001
-      ACCESS_TOKEN_SECRET: put_your_access_token_secret_here
+      ACCESS_TOKEN_SECRET: token_here
     ports:
       - "5001:5001"
     # cpus: 2

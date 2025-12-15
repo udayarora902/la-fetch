@@ -1,8 +1,8 @@
-import User from "../models/user.model.js";
+import prisma from "../../lib/prisma.js";
 import bcrypt from "bcryptjs";
 import { generateToken } from "../utils/generateToken.js";
 
-// Register user (admin only)
+// Register user (admin only, with bootstrap logic)
 export const registerUser = async (req, res, next) => {
   try {
     const { name, email, password, role } = req.body;
@@ -11,36 +11,40 @@ export const registerUser = async (req, res, next) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const exists = await User.findOne({ email });
-    if (exists) {
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) {
       return res.status(400).json({ message: "Email already in use" });
     }
 
-    const adminExists = await User.exists({ role: "admin" });
+    const adminExists = await prisma.user.findFirst({
+      where: { role: "admin" },
+    });
 
     if (!adminExists) {
-      // Bootstrap case: first user must be admin
       if (role !== "admin") {
         return res.status(400).json({ message: "First user must be admin" });
       }
     } else {
-      // After bootstrap: only admin can create users (admin or user)
       if (!req.user || req.user.role !== "admin") {
         return res.status(403).json({ message: "Admin access required" });
       }
     }
 
-    const user = await User.create({
-      name,
-      email,
-      password,
-      role: role || "user",
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role: (role || "user").toLowerCase(),
+      },
     });
 
     res.status(201).json({
       message: "User created",
       user: {
-        id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
@@ -62,7 +66,7 @@ export const loginUser = async (req, res, next) => {
         .json({ message: "Email and password are required" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
@@ -72,20 +76,20 @@ export const loginUser = async (req, res, next) => {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
-    const token = generateToken(user._id);
+    const token = generateToken(user.id);
 
     res.cookie("accessToken", token, {
       httpOnly: true,
       sameSite: "lax",
-      secure: false, // local dev
-      path: "/", // Without it, cookie may not be sent to all routes.
+      secure: false,
+      path: "/",
     });
 
     res.json({
       message: "Login successful",
-      token: token, //required for postman
+      token,
       user: {
-        id: user._id,
+        id: user.id,
         name: user.name,
         email: user.email,
         role: user.role,
@@ -99,7 +103,14 @@ export const loginUser = async (req, res, next) => {
 // Get all users (admin only)
 export const getUsers = async (req, res, next) => {
   try {
-    const users = await User.find().select("-password");
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+      },
+    });
     res.json(users);
   } catch (err) {
     next(err);

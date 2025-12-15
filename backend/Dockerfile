@@ -5,6 +5,12 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Copy Prisma schema explicitly (important for caching)
+COPY prisma ./prisma
+
+# Generate Prisma Client
+RUN npx prisma generate
+
 COPY . .
 
 

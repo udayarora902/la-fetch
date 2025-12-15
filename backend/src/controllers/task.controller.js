@@ -1,5 +1,4 @@
-import Task from "../models/task.model.js";
-import mongoose from "mongoose";
+import prisma from "../../lib/prisma.js";
 
 // Create task (admin only)
 export const createTask = async (req, res, next) => {
@@ -10,11 +9,13 @@ export const createTask = async (req, res, next) => {
       return res.status(400).json({ message: "Missing required fields" });
     }
 
-    const task = await Task.create({
-      title,
-      description,
-      assignedTo,
-      createdBy: req.user._id,
+    const task = await prisma.task.create({
+      data: {
+        title,
+        description,
+        assignedToId: assignedTo,
+        createdById: req.user.id,
+      },
     });
 
     res.status(201).json({
@@ -26,10 +27,16 @@ export const createTask = async (req, res, next) => {
   }
 };
 
-// Get all tasks (admin and user)
+// Get all tasks
 export const getTasks = async (req, res, next) => {
   try {
-    const tasks = await Task.find().populate("assignedTo", "name email role");
+    const tasks = await prisma.task.findMany({
+      include: {
+        assignedTo: {
+          select: { id: true, name: true, email: true, role: true },
+        },
+      },
+    });
     res.json(tasks);
   } catch (err) {
     next(err);
@@ -39,14 +46,14 @@ export const getTasks = async (req, res, next) => {
 // Get single task
 export const getTaskById = async (req, res, next) => {
   try {
-    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
-      return res.status(400).json({ message: "Invalid task id" });
-    }
-
-    const task = await Task.findById(req.params.id).populate(
-      "assignedTo",
-      "name email role"
-    );
+    const task = await prisma.task.findUnique({
+      where: { id: req.params.id },
+      include: {
+        assignedTo: {
+          select: { id: true, name: true, email: true, role: true },
+        },
+      },
+    });
 
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
@@ -61,23 +68,23 @@ export const getTaskById = async (req, res, next) => {
 // Update task (admin OR assigned user)
 export const updateTask = async (req, res, next) => {
   try {
-    const task = await Task.findById(req.params.id);
+    const task = await prisma.task.findUnique({
+      where: { id: req.params.id },
+    });
 
     if (!task) {
       return res.status(404).json({ message: "Task not found" });
     }
 
-    // user role can only update own tasks
-    if (req.user.role === "user") {
-      if (task.assignedTo.toString() !== req.user._id.toString()) {
-        return res
-          .status(403)
-          .json({ message: "Not authorized to update this task" });
-      }
+    if (req.user.role === "USER" && task.assignedToId !== req.user.id) {
+      return res
+        .status(403)
+        .json({ message: "Not authorized to update this task" });
     }
 
-    const updated = await Task.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
+    const updated = await prisma.task.update({
+      where: { id: req.params.id },
+      data: req.body,
     });
 
     res.json({
@@ -92,13 +99,9 @@ export const updateTask = async (req, res, next) => {
 // Delete task (admin only)
 export const deleteTask = async (req, res, next) => {
   try {
-    const task = await Task.findById(req.params.id);
-
-    if (!task) {
-      return res.status(404).json({ message: "Task not found" });
-    }
-
-    await task.deleteOne();
+    await prisma.task.delete({
+      where: { id: req.params.id },
+    });
 
     res.json({ message: "Task deleted successfully" });
   } catch (err) {

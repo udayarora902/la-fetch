@@ -1,7 +1,8 @@
 # Task Assignee API
 
-A backend REST API for task management with **role-based access control (RBAC)**, built using **Node.js, Express, MongoDB, and JWT authentication**.
-This project is intentionally designed to reflect **production-grade backend patterns** such as stateless authentication, strict authorization, and secure data handling.
+A backend REST API for task management with **role-based access control (RBAC)**, built using **Node.js, Express, PostgreSQL, Prisma, and JWT authentication**.
+
+This project is designed to demonstrate **production-grade backend patterns** such as stateless authentication, strict authorization, secure data handling, and clear separation of responsibilities.
 
 ---
 
@@ -11,8 +12,8 @@ This project is intentionally designed to reflect **production-grade backend pat
 
 - JWT-based stateless authentication
 - Role-based access control with `admin` and `user` roles
-- Protected routes using middleware
-- Tokens are validated per environment (no shared secrets)
+- Protected routes enforced via middleware
+- Tokens are validated per environment using a secret key
 
 ### User Management
 
@@ -24,10 +25,15 @@ This project is intentionally designed to reflect **production-grade backend pat
 ### Task Management
 
 - Admins can create, assign, update, and delete tasks
-- Users can view tasks
+- Users can view all tasks
 - Users can update **only tasks assigned to them**
-- Task lifecycle: `pending → in_progress → completed`
-- Strict ObjectId validation for all task routes
+- Task lifecycle:
+
+  - `pending`
+  - `in_progress`
+  - `completed`
+
+- Strict UUID validation for all task routes
 
 ---
 
@@ -35,15 +41,15 @@ This project is intentionally designed to reflect **production-grade backend pat
 
 - Node.js
 - Express.js
-- MongoDB + Mongoose
+- PostgreSQL (Neon)
+- Prisma ORM
 - JWT (jsonwebtoken)
-- bcryptjs
+- bcrypt
+- Docker
 
 ---
 
-## Demo Credentials (For Evaluation)
-
-> These credentials assume the users already exist in the database.
+## Demo Credentials
 
 ### Admin User
 
@@ -59,11 +65,15 @@ Role: user
 
 ---
 
-## Admin Creation Strategy
+## Admin Bootstrap Strategy
 
-- The **first admin** is created manually (or seeded) to bootstrap the system.
-- Once an admin exists, **only admins** can create additional users or admins via the API.
-- This design prevents unauthorized privilege escalation and mirrors real-world RBAC systems.
+- The `/api/users` registration route is intentionally **public**.
+- The controller enforces a bootstrap rule:
+
+  - If **no admin exists**, the first user with role `admin` can be created.
+  - Once an admin exists, **only authenticated admins** can create users or other admins.
+
+- This approach allows initial system setup while preventing privilege escalation.
 
 ---
 
@@ -88,30 +98,39 @@ JWTs are **stateless**. Server restarts do not invalidate tokens.
 **POST /api/users/login**
 Login and receive a JWT token.
 
+```json
 {
-"email": "admin@test.com",
-"password": "admin123"
+  "email": "admin@test.com",
+  "password": "admin123"
 }
---or--
+```
 
+or
+
+```json
 {
-"email": "user@test.com",
-"password": "user123"
+  "email": "user@test.com",
+  "password": "user123"
 }
+```
 
 ---
 
-### Users (Admin Only)
+### Users
 
 **POST /api/users**
-Create a new user or admin.
 
+- Access: Public (bootstrap) / Admin (after bootstrap)
+- Description: Create a new user or admin
+
+```json
 {
-"name": "John Doe",
-"email": "john@test.com",
-"password": "john123",
-"role": "user"
+  "name": "John Doe",
+  "email": "john@test.com",
+  "password": "john123",
+  "role": "user"
 }
+```
 
 ---
 
@@ -119,14 +138,16 @@ Create a new user or admin.
 
 **POST /api/tasks**
 
-- Access: Admin
+- Access: Admin (Bearer Token required)
 - Description: Create and assign a task to a user
 
+```json
 {
-"title": "Test Title",
-"description": "Test Description",
-"assignedTo": "64f1b2a9c8e4a1d2b3c4d5e6"
+  "title": "Test Title",
+  "description": "Test Description",
+  "assignedTo": "cfceaac7-d32c-4785-ac06-6e3a6cfb1e02"
 }
+```
 
 **GET /api/tasks**
 
@@ -143,9 +164,11 @@ Create a new user or admin.
 - Access: Admin or assigned user
 - Description: Update task status or details
 
+```json
 {
-"status": "completed"
+  "status": "completed"
 }
+```
 
 **DELETE /api/tasks/:taskId**
 
@@ -170,7 +193,7 @@ Create a new user or admin.
 
 ## Validation & Error Handling
 
-- Invalid ObjectId → `400 Bad Request`
+- Invalid UUID → `400 Bad Request`
 - Unauthorized access → `401 Unauthorized`
 - Forbidden action → `403 Forbidden`
 - Resource not found → `404 Not Found`
@@ -195,17 +218,21 @@ npm install
 npm start
 ```
 
-## Run using Docker:
-
-```
-docker compose up --build
-```
-
 Server runs at:
 
 ```
 http://localhost:5001
 ```
+
+---
+
+## Run using Docker
+
+```bash
+docker compose up --build
+```
+
+This starts the backend service connected to PostgreSQL.
 
 ---
 
@@ -216,7 +243,7 @@ Create a `.env` file using the provided `.env.example`.
 Required variables:
 
 - `PORT`
-- `MONGO_URI`
+- `DATABASE_URL`
 - `ACCESS_TOKEN_SECRET`
 
 ---
@@ -224,9 +251,8 @@ Required variables:
 ## Design Decisions
 
 - Stateless JWT authentication for scalability
+- Prisma ORM for type-safe database access and schema consistency
 - Authorization enforced at middleware and controller level
 - Server-controlled ownership (`createdBy`) to prevent spoofing
 - Strict validation to avoid malformed database queries
 - Simplicity over over-engineering for clarity and security
-
----
